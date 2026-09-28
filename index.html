@@ -985,6 +985,7 @@ function updateCloudBadge(){
 }
 function showCloudStatus(msg, type){
   const el = document.getElementById("cloudConfigStatus");
+  if(!el) return;
   el.className = "cloud-status " + (type || "");
   el.innerText = msg;
 }
@@ -1669,9 +1670,11 @@ function calcStorageInfo(){
   for(let k in localStorage){if(localStorage.hasOwnProperty(k))total+=(localStorage[k].length+k.length)*2;}
   const kb=(total/1024).toFixed(1),max=CONFIG.LOCAL_STORAGE_MAX_KB;
   const el=document.getElementById("storageInfo");
-  const warn=total>max*0.8*1024;
-  el.innerText=`${kb}KB / ${max}KB${warn?" ⚠️空间紧张":""}`;
-  el.className=warn?"storage-warn":"";
+  if(el){
+    const warn=total>max*0.8*1024;
+    el.innerText=`${kb}KB / ${max}KB${warn?" ⚠️空间紧张":""}`;
+    el.className=warn?"storage-warn":"";
+  }
   const badge=document.getElementById("missBadge");
   if(badge)badge.innerText=missQueryList.length?`(${missQueryList.length})`:"";
   const badgeTop=document.getElementById("missBadgeTop");
