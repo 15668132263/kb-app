@@ -2378,6 +2378,23 @@ async function initApp(){
     setInterval(()=>{
       if(cloudConfig.enabled && cloudConfig.ghToken) pullFromCloud();
     }, 6 * 60 * 60 * 1000);
+    // 自动重试：如果同步失败，1分钟后自动重试
+    let retryCount = 0;
+    const retryTimer = setInterval(()=>{
+      if(!cloudConfig.enabled || !cloudConfig.ghToken) { clearInterval(retryTimer); return; }
+      const badge = document.getElementById("cloudStatusBadge");
+      if(badge && badge.classList.contains("err")) {
+        retryCount++;
+        if(retryCount <= 10) {
+          pullFromCloud();
+        } else {
+          clearInterval(retryTimer);
+        }
+      } else {
+        // 成功了就停止重试
+        clearInterval(retryTimer);
+      }
+    }, 60 * 1000);
   }
 }
 initApp();
