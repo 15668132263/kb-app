@@ -900,6 +900,7 @@ const CONFIG = {
   STORAGE_KEY_MISS: "kb_miss_query",
   STORAGE_KEY_RECYCLE: "kb_recycle_bin",
   STORAGE_KEY_AI: "kb_ai_config",
+  STORAGE_KEY_USER: "kb_user_name",
   PAGE_SIZE: 80,
   DEBOUNCE_DELAY: 220,
   MAX_MISS_QUERY: 500,
@@ -1477,6 +1478,8 @@ const DEFAULT_BAN_WORDS = ["卫星","微信","淘宝","支付宝","妈的","QQ",
 
 /* ========== 本地数据初始化 ========== */
 let banWords,data,missQueryList=[],recycleBin=[];
+// 当前用户名
+let currentUser = localStorage.getItem(CONFIG.STORAGE_KEY_USER) || "";
 try{
   banWords=JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY_BAN))||DEFAULT_BAN_WORDS.slice();
   missQueryList=JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY_MISS))||[];
@@ -1646,6 +1649,27 @@ let imgScale=1;
 const modalImg=document.getElementById("modalImg"),imgModal=document.getElementById("imgModal");
 
 /* ========== 存储 ========== */
+/* 记录日志 */
+function addLog(type, content){
+  if(!currentUser) return;
+  if(!data.logs) data.logs = [];
+  const now = new Date();
+  const time = now.getFullYear() + "-" + 
+    String(now.getMonth()+1).padStart(2,"0") + "-" + 
+    String(now.getDate()).padStart(2,"0") + " " + 
+    String(now.getHours()).padStart(2,"0") + ":" + 
+    String(now.getMinutes()).padStart(2,"0") + ":" + 
+    String(now.getSeconds()).padStart(2,"0");
+  data.logs.unshift({
+    time: time,
+    user: currentUser,
+    type: type,
+    content: content
+  });
+  // 只保留最近200条日志
+  if(data.logs.length > 200) data.logs = data.logs.slice(0, 200);
+}
+
 function saveLocal(){
   try{
     data.groups=groups;data.knowledge=knowledge;data.searchCount=searchCount;
@@ -2162,12 +2186,14 @@ function saveItem(){
         star:document.getElementById("itemStar").checked,
         disabled:document.getElementById("itemDisabled").checked,
         mtime:now});
+      addLog("修改", "修改了知识：" + q.slice(0,20));
     }
   }else{
     knowledge.push({id:Date.now(),gid:gid?Number(gid):null,tags,alias,q,a,note,
       star:document.getElementById("itemStar").checked,
       disabled:document.getElementById("itemDisabled").checked,
       hit:0,ctime:now,mtime:now});
+    addLog("新增", "新增了知识：" + q.slice(0,20));
   }
   saveLocal();cancelEdit();renderList();
   showToast("✅问答保存成功");
@@ -2175,6 +2201,7 @@ function saveItem(){
 function delItem(id){
   const item=knowledge.find(x=>x.id===id);if(!item)return;
   if(!confirm("删除后会进入回收站，可恢复，确定？"))return;
+  addLog("删除", "删除了知识：" + item.q.slice(0,20));
   recycleBin.push(item);
   knowledge=knowledge.filter(x=>x.id!==id);
   saveLocal();renderList();
@@ -2400,6 +2427,23 @@ async function initApp(){
         clearInterval(retryTimer);
       }
     }, 60 * 1000);
+  }
+
+  // 如果没有用户名，弹出输入框让用户输入
+  if(!currentUser){
+    setTimeout(()=>{
+      const name = prompt("请输入你的名字（用于记录使用日志）：");
+      if(name && name.trim()){
+        currentUser = name.trim();
+        localStorage.setItem(CONFIG.STORAGE_KEY_USER, currentUser);
+        addLog("访问", "首次打开，设置用户名");
+        saveLocal();
+      }
+    }, 1000);
+  } else {
+    // 记录访问日志
+    addLog("访问", "打开了知识库");
+    saveLocal();
   }
 }
 initApp();
