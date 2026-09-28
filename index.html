@@ -2371,6 +2371,8 @@ async function initApp(){
   updateAiBadge();
   loadCloudConfigToForm();
   updateCloudBadge();
+  // 客服版直接显示同步中
+  setCloudBadgeState("syncing", "☁️ 同步中...");
   // 如果开启了同步，自动拉取最新数据
   if(cloudConfig.enabled && cloudConfig.ghToken){
     setTimeout(()=>pullFromCloud(), 500);
