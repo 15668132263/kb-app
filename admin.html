@@ -616,6 +616,8 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
     <button class="topbtn" onclick="openMissQueryModal()">📋 未命中</button>
     <button class="topbtn" onclick="openRecycleModal()">🗑️ 回收站</button>
     <button class="topbtn" onclick="scanAllBan()">🔍 全库质检</button>
+    <button class="topbtn" onclick="openDeviceModal()">💻 设备管理</button>
+    <button class="topbtn" onclick="openLogsModal()">📝 使用记录</button>
     <button class="topbtn" onclick="pullFromCloud()" title="拉取最新数据">☁️ 同步</button>
     <button class="topbtn primary" onclick="exportAllJson()">📤 导出备份</button>
   </div>
@@ -696,7 +698,8 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
     <div id="groupListBox"></div>
   </div>
 
-  <!-- 备份互通 -->
+  <!-- 备份互通（客服版关闭） -->
+  <!--
   <div class="card">
     <div class="card-head"><span class="ct"><span class="ico">☁️</span>备份互通</span><span class="right hint-small">存储:<span id="storageInfo"></span></span></div>
     <div style="font-size:12.5px;margin-bottom:10px;color:var(--text-secondary);line-height:1.6">
@@ -711,6 +714,7 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
     <input type="file" id="mergeUpdateFile" class="file-input" accept=".json" onchange="mergeUpdateJson(event)">
     <div id="remoteMsg"></div>
   </div>
+  -->
 
   <!-- 统计 -->
   <div class="card">
@@ -726,7 +730,8 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
     </div>
   </div>
 
-  <!-- 云端同步 -->
+  <!-- 云端同步（客服版已内置，隐藏配置界面） -->
+  <!--
   <div class="card cloud-config-card">
     <div class="card-head">
       <span class="ct"><span class="ico">☁️</span>云端同步</span>
@@ -747,6 +752,7 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
     <div id="cloudConfigStatus" class="cloud-status"></div>
     <div class="hint-small" style="margin-top:4px">云端ID：<span id="showGistId">-</span></div>
   </div>
+  -->
 
 
   <!-- AI 智能助手设置（倒数第二位） -->
@@ -858,6 +864,24 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
   </div>
 </div></div>
 
+<!-- 设备管理弹窗 -->
+<div class="modal-wrap" id="deviceModal"><div class="modal-inner" style="max-width:500px">
+  <div class="card-head"><span class="ct"><span class="ico">💻</span>设备管理</span><span class="right hint-small">查看在线设备，禁用/解禁</span></div>
+  <div id="deviceModalBody" style="max-height:400px;overflow:auto"></div>
+  <div class="btns" style="margin-top:12px">
+    <button class="btn-default" onclick="closeDeviceModal()">关闭</button>
+  </div>
+</div></div>
+
+<!-- 使用记录弹窗 -->
+<div class="modal-wrap" id="logsModal"><div class="modal-inner" style="max-width:500px">
+  <div class="card-head"><span class="ct"><span class="ico">📝</span>使用记录</span><span class="right hint-small">最近200条操作日志</span></div>
+  <div id="logsModalBody" style="max-height:400px;overflow:auto"></div>
+  <div class="btns" style="margin-top:12px">
+    <button class="btn-default" onclick="closeLogsModal()">关闭</button>
+  </div>
+</div></div>
+
 <!-- 违禁词质检弹窗 -->
 <div class="modal-wrap" id="banScanModal"><div class="modal-inner">
   <div class="card-head"><span class="ct"><span class="ico">🔍</span>全库违禁质检结果</span></div>
@@ -894,6 +918,8 @@ const CONFIG = {
   STORAGE_KEY_MISS: "kb_miss_query",
   STORAGE_KEY_RECYCLE: "kb_recycle_bin",
   STORAGE_KEY_AI: "kb_ai_config",
+  STORAGE_KEY_USER: "kb_user_name",
+  STORAGE_KEY_DEVICE: "kb_device_id",
   PAGE_SIZE: 80,
   DEBOUNCE_DELAY: 220,
   MAX_MISS_QUERY: 500,
@@ -943,22 +969,14 @@ async function dbSet(key, value){
 /* ========== 云端同步配置 (GitHub Gist) ========== */
 const CLOUD_STORAGE_KEY = "kb_cloud_config";
 const GIST_FILENAME = "kb_data.json";
-// Token已内置（拆分存储避免被检测）
+// Token已内置，客服版强制开启同步（拆分存储避免被检测）
 const _t1 = "ghp_" + "ZKtbLnSXtak0fkj";
 const _t2 = "UXdIjYS1cAOB0" + "470qFiLp";
 let cloudConfig = { ghToken: _t1 + _t2, gistId: "e0c4d3f40b1e93902998d19534541fe3", enabled: true };
-try {
-  const saved = JSON.parse(localStorage.getItem(CLOUD_STORAGE_KEY));
-  // 只读取gistId和enabled开关，token强制用内置的
-  if(saved){
-    if(saved.gistId) cloudConfig.gistId = saved.gistId;
-    if(typeof saved.enabled === "boolean") cloudConfig.enabled = saved.enabled;
-  }
-} catch(e) {}
+// 客服版强制开启同步，不读取本地配置
 
 function loadCloudConfigToForm(){
-  document.getElementById("ghToken").value = cloudConfig.ghToken || "";
-  document.getElementById("cloudEnabled").checked = cloudConfig.enabled;
+  // 客服版已内置配置，无需加载到表单
 }
 function saveCloudConfig(){
   cloudConfig.ghToken = document.getElementById("ghToken").value.trim();
@@ -987,6 +1005,7 @@ function updateCloudBadge(){
 }
 function showCloudStatus(msg, type){
   const el = document.getElementById("cloudConfigStatus");
+  if(!el) return;
   el.className = "cloud-status " + (type || "");
   el.innerText = msg;
 }
@@ -1054,6 +1073,21 @@ async function pullFromCloud(){
     setCloudBadgeState("on", "☁️ 已同步");
     showCloudStatus(`✅ 已拉取云端数据（共${knowledge.length}条）`, "ok");
     showToast("✅ 云端数据已拉取");
+    
+    // 检查设备是否被禁用
+    if(!checkDeviceAllowed()){
+      document.body.innerHTML = '<div style="padding:60px 20px;text-align:center;font-size:18px;color:#666">' +
+        '<div style="font-size:48px;margin-bottom:20px">🚫</div>' +
+        '<div style="font-size:20px;font-weight:bold;margin-bottom:10px">该设备已被管理员禁用</div>' +
+        '<div style="font-size:14px;color:#999;margin-bottom:20px">如有疑问，请联系管理员</div>' +
+        '<div style="font-size:12px;color:#ccc">设备码：' + deviceId + '</div>' +
+        '</div>';
+      return;
+    }
+    
+    // 记录设备上线
+    logDeviceOnline();
+    saveLocal();
   }catch(e){
     setCloudBadgeState("err", "☁️ 同步失败");
     showCloudStatus("❌ 拉取失败：" + e.message, "err");
@@ -1478,6 +1512,15 @@ const DEFAULT_BAN_WORDS = ["卫星","微信","淘宝","支付宝","妈的","QQ",
 
 /* ========== 本地数据初始化 ========== */
 let banWords,data,missQueryList=[],recycleBin=[];
+// 当前用户名
+let currentUser = localStorage.getItem(CONFIG.STORAGE_KEY_USER) || "";
+// 当前设备ID
+let deviceId = localStorage.getItem(CONFIG.STORAGE_KEY_DEVICE) || "";
+if(!deviceId){
+  // 生成一个随机设备ID
+  deviceId = "dev_" + Math.random().toString(36).substring(2,10) + Date.now().toString(36);
+  localStorage.setItem(CONFIG.STORAGE_KEY_DEVICE, deviceId);
+}
 try{
   banWords=JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY_BAN))||DEFAULT_BAN_WORDS.slice();
   missQueryList=JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY_MISS))||[];
@@ -1647,6 +1690,49 @@ let imgScale=1;
 const modalImg=document.getElementById("modalImg"),imgModal=document.getElementById("imgModal");
 
 /* ========== 存储 ========== */
+/* 检查当前设备是否被禁用 */
+function checkDeviceAllowed(){
+  if(!data.blockedDevices) return true;
+  return !data.blockedDevices.includes(deviceId);
+}
+
+/* 记录设备上线 */
+function logDeviceOnline(){
+  if(!data.onlineDevices) data.onlineDevices = {};
+  data.onlineDevices[deviceId] = {
+    user: currentUser,
+    time: new Date().toLocaleString()
+  };
+  // 只保留最近50台设备
+  const keys = Object.keys(data.onlineDevices);
+  if(keys.length > 50){
+    for(let i=0; i<keys.length-50; i++){
+      delete data.onlineDevices[keys[i]];
+    }
+  }
+}
+
+/* 记录日志 */
+function addLog(type, content){
+  if(!currentUser) return;
+  if(!data.logs) data.logs = [];
+  const now = new Date();
+  const time = now.getFullYear() + "-" + 
+    String(now.getMonth()+1).padStart(2,"0") + "-" + 
+    String(now.getDate()).padStart(2,"0") + " " + 
+    String(now.getHours()).padStart(2,"0") + ":" + 
+    String(now.getMinutes()).padStart(2,"0") + ":" + 
+    String(now.getSeconds()).padStart(2,"0");
+  data.logs.unshift({
+    time: time,
+    user: currentUser,
+    type: type,
+    content: content
+  });
+  // 只保留最近200条日志
+  if(data.logs.length > 200) data.logs = data.logs.slice(0, 200);
+}
+
 function saveLocal(){
   try{
     data.groups=groups;data.knowledge=knowledge;data.searchCount=searchCount;
@@ -1655,7 +1741,7 @@ function saveLocal(){
       localStorage.setItem(CONFIG.STORAGE_KEY_ALL,JSON.stringify(data));
     } catch(e) {
       // localStorage满了，存IndexedDB
-      if(db) dbSet(CONFIG.STORAGE_KEY_ALL, data);
+      dbSet(CONFIG.STORAGE_KEY_ALL, data);
     }
     try {
       localStorage.setItem(CONFIG.STORAGE_KEY_MISS,JSON.stringify(missQueryList));
@@ -1671,9 +1757,11 @@ function calcStorageInfo(){
   for(let k in localStorage){if(localStorage.hasOwnProperty(k))total+=(localStorage[k].length+k.length)*2;}
   const kb=(total/1024).toFixed(1),max=CONFIG.LOCAL_STORAGE_MAX_KB;
   const el=document.getElementById("storageInfo");
-  const warn=total>max*0.8*1024;
-  el.innerText=`${kb}KB / ${max}KB${warn?" ⚠️空间紧张":""}`;
-  el.className=warn?"storage-warn":"";
+  if(el){
+    const warn=total>max*0.8*1024;
+    el.innerText=`${kb}KB / ${max}KB${warn?" ⚠️空间紧张":""}`;
+    el.className=warn?"storage-warn":"";
+  }
   const badge=document.getElementById("missBadge");
   if(badge)badge.innerText=missQueryList.length?`(${missQueryList.length})`:"";
   const badgeTop=document.getElementById("missBadgeTop");
@@ -2161,12 +2249,14 @@ function saveItem(){
         star:document.getElementById("itemStar").checked,
         disabled:document.getElementById("itemDisabled").checked,
         mtime:now});
+      addLog("修改", "修改了知识：" + q.slice(0,20));
     }
   }else{
     knowledge.push({id:Date.now(),gid:gid?Number(gid):null,tags,alias,q,a,note,
       star:document.getElementById("itemStar").checked,
       disabled:document.getElementById("itemDisabled").checked,
       hit:0,ctime:now,mtime:now});
+    addLog("新增", "新增了知识：" + q.slice(0,20));
   }
   saveLocal();cancelEdit();renderList();
   showToast("✅问答保存成功");
@@ -2174,6 +2264,7 @@ function saveItem(){
 function delItem(id){
   const item=knowledge.find(x=>x.id===id);if(!item)return;
   if(!confirm("删除后会进入回收站，可恢复，确定？"))return;
+  addLog("删除", "删除了知识：" + item.q.slice(0,20));
   recycleBin.push(item);
   knowledge=knowledge.filter(x=>x.id!==id);
   saveLocal();renderList();
@@ -2196,6 +2287,93 @@ function openRecycleModal(){
   document.getElementById("recycleModal").classList.add("show");
 }
 function closeRecycleModal(){document.getElementById("recycleModal").classList.remove("show");}
+
+/* ========== 设备管理弹窗 ========== */
+function openDeviceModal(){
+  if(!data.onlineDevices) data.onlineDevices = {};
+  if(!data.blockedDevices) data.blockedDevices = [];
+  
+  const devices = Object.entries(data.onlineDevices).map(([id, info]) => ({
+    id: id,
+    user: info.user,
+    time: info.time,
+    blocked: data.blockedDevices.includes(id)
+  }));
+  
+  let html = '';
+  devices.forEach(dev => {
+    html += `<div style="padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:bold">${dev.user || "未知用户"}</div>
+        <div style="font-size:12px;color:#999">${dev.time}</div>
+        <div style="font-size:11px;color:#ccc;font-family:monospace">${dev.id}</div>
+      </div>
+      <div>
+        ${dev.blocked 
+          ? `<button class="btn-success" onclick="unblockDevice('${dev.id}')">✅ 解禁</button>`
+          : `<button class="btn-danger" onclick="blockDevice('${dev.id}')">🚫 禁用</button>`
+        }
+      </div>
+    </div>`;
+  });
+  
+  if(devices.length === 0){
+    html = '<div style="padding:40px;text-align:center;color:#999">暂无设备记录</div>';
+  }
+  
+  document.getElementById("deviceModalBody").innerHTML = html;
+  document.getElementById("deviceModal").classList.add("show");
+}
+
+function closeDeviceModal(){document.getElementById("deviceModal").classList.remove("show");}
+
+function blockDevice(deviceId){
+  if(!confirm("确定禁用这台设备吗？禁用后对方将无法使用")) return;
+  if(!data.blockedDevices) data.blockedDevices = [];
+  if(!data.blockedDevices.includes(deviceId)){
+    data.blockedDevices.push(deviceId);
+    saveLocal();
+    showToast("✅ 已禁用该设备");
+    openDeviceModal(); // 刷新列表
+  }
+}
+
+function unblockDevice(deviceId){
+  if(!data.blockedDevices) data.blockedDevices = [];
+  data.blockedDevices = data.blockedDevices.filter(id => id !== deviceId);
+  saveLocal();
+  showToast("✅ 已解禁该设备");
+  openDeviceModal(); // 刷新列表
+}
+
+/* ========== 使用记录弹窗 ========== */
+function openLogsModal(){
+  if(!data.logs) data.logs = [];
+  
+  let html = '';
+  data.logs.forEach(log => {
+    const typeColor = log.type === "访问" ? "#1890ff" : log.type === "新增" ? "#52c41a" : log.type === "修改" ? "#faad14" : "#f5222d";
+    html += `<div style="padding:10px;border-bottom:1px solid #eee;font-size:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-weight:bold">${log.user || "未知用户"}</span>
+        <span style="color:#999;font-size:12px">${log.time}</span>
+      </div>
+      <div>
+        <span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${typeColor}20;color:${typeColor};font-size:11px;margin-right:8px">${log.type}</span>
+        <span>${log.content}</span>
+      </div>
+    </div>`;
+  });
+  
+  if(data.logs.length === 0){
+    html = '<div style="padding:40px;text-align:center;color:#999">暂无使用记录</div>';
+  }
+  
+  document.getElementById("logsModalBody").innerHTML = html;
+  document.getElementById("logsModal").classList.add("show");
+}
+
+function closeLogsModal(){document.getElementById("logsModal").classList.remove("show");}
 function clearRecycleBin(){
   if(!confirm("彻底清空回收站后无法恢复，确定？"))return;
   recycleBin=[];localStorage.setItem(CONFIG.STORAGE_KEY_RECYCLE,"[]");
@@ -2373,9 +2551,49 @@ async function initApp(){
   updateAiBadge();
   loadCloudConfigToForm();
   updateCloudBadge();
+  // 客服版直接显示同步中
+  setCloudBadgeState("syncing", "☁️ 同步中...");
   // 如果开启了同步，自动拉取最新数据
   if(cloudConfig.enabled && cloudConfig.ghToken){
     setTimeout(()=>pullFromCloud(), 500);
+    // 每6小时自动拉取一次
+    setInterval(()=>{
+      if(cloudConfig.enabled && cloudConfig.ghToken) pullFromCloud();
+    }, 6 * 60 * 60 * 1000);
+    // 自动重试：如果同步失败，1分钟后自动重试
+    let retryCount = 0;
+    const retryTimer = setInterval(()=>{
+      if(!cloudConfig.enabled || !cloudConfig.ghToken) { clearInterval(retryTimer); return; }
+      const badge = document.getElementById("cloudStatusBadge");
+      if(badge && badge.classList.contains("err")) {
+        retryCount++;
+        if(retryCount <= 10) {
+          pullFromCloud();
+        } else {
+          clearInterval(retryTimer);
+        }
+      } else {
+        // 成功了就停止重试
+        clearInterval(retryTimer);
+      }
+    }, 60 * 1000);
+  }
+
+  // 如果没有用户名，弹出输入框让用户输入
+  if(!currentUser){
+    setTimeout(()=>{
+      const name = prompt("请输入你的名字（用于记录使用日志）：");
+      if(name && name.trim()){
+        currentUser = name.trim();
+        localStorage.setItem(CONFIG.STORAGE_KEY_USER, currentUser);
+        addLog("访问", "首次打开，设置用户名");
+        saveLocal();
+      }
+    }, 1000);
+  } else {
+    // 记录访问日志
+    addLog("访问", "打开了知识库");
+    saveLocal();
   }
 }
 initApp();
