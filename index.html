@@ -1182,6 +1182,11 @@ async function callAI(systemPrompt, userPrompt){
     temperature: 0.6,
     stream: false
   };
+  // 豆包模型默认开启深度思考（慢），这里关闭换取快速回复
+  if(/doubao/i.test(aiConfig.model || "")){
+    body.thinking = { type: "disabled" };
+    body.max_tokens = 800;
+  }
 
   // 120秒超时，防止本地大模型卡住一直转圈
   const ctrl = new AbortController();
