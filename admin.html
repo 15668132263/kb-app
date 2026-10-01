@@ -773,6 +773,11 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
       <label><input type="checkbox" id="aiAutoOn"> 🔍 未命中时自动AI推荐</label>
       <label><input type="checkbox" id="aiPoliteOn" checked> ✨ AI话术偏礼貌</label>
     </div>
+    <div class="check-row" style="border-top:1px dashed #d8c8f5;padding-top:10px;margin-top:4px">
+      <div style="font-size:12px;color:#6d28d9;font-weight:600;margin-bottom:6px;width:100%">📱 客服端AI控制（保存后同步给所有客服）</div>
+      <label><input type="checkbox" id="aiCtrlEnabled" checked> 允许客服使用AI</label>
+      <label><input type="checkbox" id="aiCtrlAutoOn"> 客服未命中自动AI推荐</label>
+    </div>
     <div class="btns">
       <button class="btn-ai" onclick="testAiConnection()">🔌 测试连接</button>
       <button class="btn-default" onclick="saveAiConfig()">💾 保存配置</button>
@@ -1072,6 +1077,7 @@ async function pullFromCloud(){
     groups = remote.groups || [];
     knowledge = remote.knowledge || [];
     searchCount = remote.searchCount || 0;
+    data = remote;
     saveLocal();
     renderGroupList();
     renderListWithPage();
@@ -1111,7 +1117,8 @@ function pushToCloud(immediate){
     return;
   }
   setCloudBadgeState("syncing", "☁️ 同步中...");
-  const content = JSON.stringify({ groups, knowledge, searchCount });
+  // 推送完整数据（含日志/设备/AI控制等）
+  const content = JSON.stringify(data);
   const payload = {
     files: {}
   };
@@ -1175,6 +1182,10 @@ function loadAiConfigToForm(){
   document.getElementById("aiApiKey").value = aiConfig.apiKey || "";
   document.getElementById("aiAutoOn").checked = !!aiConfig.autoOn;
   document.getElementById("aiPoliteOn").checked = aiConfig.politeOn !== false;
+  // 客服端AI控制（从云端数据读取）
+  const ac = Object.assign({enabled:true, autoOn:false}, (data.aiControl||{}));
+  document.getElementById("aiCtrlEnabled").checked = ac.enabled !== false;
+  document.getElementById("aiCtrlAutoOn").checked = !!ac.autoOn;
 }
 function saveAiConfig(){
   aiConfig.baseUrl = document.getElementById("aiBaseUrl").value.trim().replace(/\/+$/,"");
@@ -1183,11 +1194,18 @@ function saveAiConfig(){
   aiConfig.autoOn = document.getElementById("aiAutoOn").checked;
   aiConfig.politeOn = document.getElementById("aiPoliteOn").checked;
   localStorage.setItem(CONFIG.STORAGE_KEY_AI, JSON.stringify(aiConfig));
+  // 客服端AI控制写入云端数据
+  data.aiControl = {
+    enabled: document.getElementById("aiCtrlEnabled").checked,
+    autoOn: document.getElementById("aiCtrlAutoOn").checked
+  };
+  saveLocal();
+  if(cloudConfig.enabled && cloudConfig.ghToken) pushToCloud(true);
   const st = document.getElementById("aiConfigStatus");
   st.className = "ai-status ok";
-  st.innerText = "✅ AI 配置已保存";
+  st.innerText = "✅ AI 配置已保存" + (cloudConfig.enabled ? "（已同步客服端）" : "");
   updateAiBadge();
-  showToast("✅ AI配置已保存");
+  showToast("✅ AI配置已保存" + (cloudConfig.enabled ? "，已同步客服端" : ""));
 }
 function updateAiBadge(){
   const b = document.getElementById("aiStatusBadge");
@@ -1534,12 +1552,13 @@ try{
   data=JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY_ALL))||{
     groups:[{gid:1,name:"DTMB地面波"},{gid:2,name:"户户通卫星"},{gid:3,name:"网络机顶盒"},{gid:4,name:"配件通用"}],
     knowledge:[],
-    searchCount:0
+    searchCount:0,
+    aiControl:{enabled:true, autoOn:false}
   };
 }catch(e){
   console.error("本地存储读取异常",e);
   banWords=DEFAULT_BAN_WORDS.slice();
-  data={groups:[{gid:1,name:"DTMB地面波"},{gid:2,name:"户户通卫星"},{gid:3,name:"网络机顶盒"},{gid:4,name:"配件通用"}],knowledge:[],searchCount:0};
+  data={groups:[{gid:1,name:"DTMB地面波"},{gid:2,name:"户户通卫星"},{gid:3,name:"网络机顶盒"},{gid:4,name:"配件通用"}],knowledge:[],searchCount:0,aiControl:{enabled:true,autoOn:false}};
 }
 let groups=data.groups,knowledge=data.knowledge,searchCount=data.searchCount||0;
 
