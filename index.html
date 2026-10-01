@@ -755,35 +755,17 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
   -->
 
 
-  <!-- AI 智能助手设置（倒数第二位） -->
+  <!-- AI 智能助手设置（由管理员统一控制） -->
   <div class="card ai-config-card">
     <div class="card-head">
       <span class="ct"><span class="ico">🤖</span>AI 智能助手</span>
-      <span class="right hint-small">接入本地开源模型</span>
+      <span class="right hint-small">由管理员统一控制</span>
     </div>
-    <div class="ai-config-row">
-      <label>接口地址</label>
-      <input id="aiBaseUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3" value="https://ark.cn-beijing.volces.com/api/v3">
-    </div>
-    <div class="ai-config-row">
-      <label>模型名称</label>
-      <input id="aiModel" placeholder="doubao-seed-2-1-lite-260915" value="doubao-seed-2-1-lite-260915">
-    </div>
-    <div class="ai-config-row">
-      <label>API Key</label>
-      <input id="aiApiKey" type="password" placeholder="填豆包API Key">
-    <div class="check-row">
-      <label><input type="checkbox" id="aiAutoOn"> 🔍 未命中时自动AI推荐</label>
-      <label><input type="checkbox" id="aiPoliteOn" checked> ✨ AI话术偏礼貌</label>
-    </div>
-    <div class="btns">
-      <button class="btn-ai" onclick="testAiConnection()">🔌 测试连接</button>
-      <button class="btn-default" onclick="saveAiConfig()">💾 保存配置</button>
+    <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.9;padding:4px 0">
+      🤖 AI生成回复：<b id="aiCtrlState">同步后生效</b><br>
+      🔍 未命中自动AI推荐：<b id="aiCtrlAutoState">同步后生效</b>
     </div>
     <div id="aiConfigStatus" class="ai-status"></div>
-    <div class="hint-small" style="margin-top:4px">
-      💡 已默认配置 DeepSeek 在线API。也支持任何 OpenAI 兼容接口：通义千问、SiliconFlow、One-API、本地 Ollama 等。
-    </div>
   </div>
 
   <!-- 违禁词 -->
@@ -1047,6 +1029,10 @@ async function pullFromCloud(){
     groups = remote.groups || [];
     knowledge = remote.knowledge || [];
     searchCount = remote.searchCount || 0;
+    data = remote;
+    // 应用管理员下发的AI控制
+    aiCtrl = Object.assign({enabled:true, autoOn:false}, (remote.aiControl||{}));
+    renderAiCtrlState();
     saveLocal();
     renderGroupList();
     renderListWithPage();
@@ -1086,7 +1072,8 @@ function pushToCloud(immediate){
     return;
   }
   setCloudBadgeState("syncing", "☁️ 同步中...");
-  const content = JSON.stringify({ groups, knowledge, searchCount });
+  // 推送完整数据（含日志/设备/AI控制等）
+  const content = JSON.stringify(data);
   const payload = {
     files: {}
   };
@@ -1145,24 +1132,18 @@ try {
 } catch(e) {}
 
 function loadAiConfigToForm(){
-  document.getElementById("aiBaseUrl").value = aiConfig.baseUrl || "";
-  document.getElementById("aiModel").value = aiConfig.model || "";
-  document.getElementById("aiApiKey").value = aiConfig.apiKey || "";
-  document.getElementById("aiAutoOn").checked = !!aiConfig.autoOn;
-  document.getElementById("aiPoliteOn").checked = aiConfig.politeOn !== false;
+  // 客服端配置由管理员统一控制，此处仅更新状态显示
+  renderAiCtrlState();
+}
+function renderAiCtrlState(){
+  const s1 = document.getElementById("aiCtrlState");
+  const s2 = document.getElementById("aiCtrlAutoState");
+  if(s1) s1.innerText = aiCtrl.enabled ? "✅ 已开启" : "🚫 已关闭";
+  if(s2) s2.innerText = aiCtrl.autoOn ? "✅ 已开启" : "关闭";
 }
 function saveAiConfig(){
-  aiConfig.baseUrl = document.getElementById("aiBaseUrl").value.trim().replace(/\/+$/,"");
-  aiConfig.model = document.getElementById("aiModel").value.trim();
-  aiConfig.apiKey = document.getElementById("aiApiKey").value.trim();
-  aiConfig.autoOn = document.getElementById("aiAutoOn").checked;
-  aiConfig.politeOn = document.getElementById("aiPoliteOn").checked;
-  localStorage.setItem(CONFIG.STORAGE_KEY_AI, JSON.stringify(aiConfig));
-  const st = document.getElementById("aiConfigStatus");
-  st.className = "ai-status ok";
-  st.innerText = "✅ AI 配置已保存";
-  updateAiBadge();
-  showToast("✅ AI配置已保存");
+  // 客服端不允许修改AI配置，忽略
+  showToast("AI配置由管理员统一控制","error");
 }
 function updateAiBadge(){
   const b = document.getElementById("aiStatusBadge");
@@ -1323,6 +1304,7 @@ function saveAiToKnowledge(){
 
 /* AI智能回复：结合当前搜索结果上下文 */
 async function aiSmartReply(){
+  if(!aiCtrl.enabled) return showToast("AI功能已被管理员关闭","error");
   const q = document.getElementById("queryInput").value.trim();
   if(!q) return showToast("请先输入买家问题","error");
   const btn = document.getElementById("aiSmartBtn");
@@ -1415,6 +1397,7 @@ async function aiSuggestTags(){
 
 /* 未命中弹窗中：AI为某条未命中问句生成答案 */
 async function aiAnswerMissQuery(q, btnEl){
+  if(!aiCtrl.enabled){ showToast("AI功能已被管理员关闭","error"); return; }
   if(!q) return;
   const oldTxt = btnEl.innerText;
   btnEl.disabled = true; btnEl.innerText = "⏳ 生成中...";
@@ -1509,14 +1492,17 @@ try{
   data=JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY_ALL))||{
     groups:[{gid:1,name:"DTMB地面波"},{gid:2,name:"户户通卫星"},{gid:3,name:"网络机顶盒"},{gid:4,name:"配件通用"}],
     knowledge:[],
-    searchCount:0
+    searchCount:0,
+    aiControl:{enabled:true, autoOn:false}
   };
 }catch(e){
   console.error("本地存储读取异常",e);
   banWords=DEFAULT_BAN_WORDS.slice();
-  data={groups:[{gid:1,name:"DTMB地面波"},{gid:2,name:"户户通卫星"},{gid:3,name:"网络机顶盒"},{gid:4,name:"配件通用"}],knowledge:[],searchCount:0};
+  data={groups:[{gid:1,name:"DTMB地面波"},{gid:2,name:"户户通卫星"},{gid:3,name:"网络机顶盒"},{gid:4,name:"配件通用"}],knowledge:[],searchCount:0,aiControl:{enabled:true,autoOn:false}};
 }
 let groups=data.groups,knowledge=data.knowledge,searchCount=data.searchCount||0;
+// 客服端AI控制（由管理员在云端控制）
+let aiCtrl = Object.assign({enabled:true, autoOn:false}, (data.aiControl||{}));
 
 /* ========== 张祎.xlsx 全部知识（按问题去重，不覆盖已有） ========== */
 const SEED_XLSX_KNOWLEDGE=[
@@ -2114,11 +2100,11 @@ function autoSearch(){
   if(!scored.length){
     box.innerHTML=`<div class="empty">❌ 无匹配答案（已自动记录到未命中）</div>
       <div style="text-align:center;margin-top:4px">
-        <button class="btn-ai" style="padding:5px 12px;font-size:12px" onclick="aiSmartReply()">🤖 让AI根据知识库生成回复</button>
+        ${aiCtrl.enabled ? `<button class="btn-ai" style="padding:5px 12px;font-size:12px" onclick="aiSmartReply()">🤖 让AI根据知识库生成回复</button>` : ""}
       </div>`;
     addMissQuery(q);
     renderStats();
-    if(aiConfig.autoOn){
+    if(aiCtrl.enabled && aiCtrl.autoOn){
       setTimeout(aiSmartReply, 300);
     }
     return;
@@ -2168,7 +2154,7 @@ function openMissQueryModal(){
     const sorted=[...missQueryList].sort((a,b)=>b.count-a.count);
     box.innerHTML=sorted.map((m,idx)=>`<div class="miss-item">
       <div class="miss-item-text" title="点击填充到新增问答" onclick="fillMissQueryToEdit('${escapeHtml(m.q)}')">${escapeHtml(m.q)} <span class="hint-small">（问了${m.count}次）</span></div>
-      <button class="btn-ai" onclick="aiAnswerMissQuery('${escapeHtml(m.q)}', this)">🤖 AI生成答案</button>
+      ${aiCtrl.enabled ? `<button class="btn-ai" onclick="aiAnswerMissQuery('${escapeHtml(m.q)}', this)">🤖 AI生成答案</button>` : ""}
       <button class="btn-primary" onclick="fillMissQueryToEdit('${escapeHtml(m.q)}')">➕新建问答</button>
     </div>`).join("");
   }
@@ -2442,6 +2428,7 @@ async function initApp(){
   loadBanWords();
   calcStorageInfo();
   loadAiConfigToForm();
+  renderAiCtrlState();
   updateAiBadge();
   loadCloudConfigToForm();
   updateCloudBadge();
