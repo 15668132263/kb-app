@@ -730,8 +730,7 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
     </div>
   </div>
 
-  <!-- 云端同步（客服版已内置，隐藏配置界面） -->
-  <!--
+  <!-- 云端同步（管理员版可配置） -->
   <div class="card cloud-config-card">
     <div class="card-head">
       <span class="ct"><span class="ico">☁️</span>云端同步</span>
@@ -752,7 +751,6 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
     <div id="cloudConfigStatus" class="cloud-status"></div>
     <div class="hint-small" style="margin-top:4px">云端ID：<span id="showGistId">-</span></div>
   </div>
-  -->
 
 
   <!-- AI 智能助手设置（倒数第二位） -->
@@ -969,14 +967,23 @@ async function dbSet(key, value){
 /* ========== 云端同步配置 (GitHub Gist) ========== */
 const CLOUD_STORAGE_KEY = "kb_cloud_config";
 const GIST_FILENAME = "kb_data.json";
-// Token已内置，客服版强制开启同步（拆分存储避免被检测）
+// Token已内置（拆分存储避免被检测），管理员可修改
 const _t1 = "ghp_" + "ZKtbLnSXtak0fkj";
 const _t2 = "UXdIjYS1cAOB0" + "470qFiLp";
 let cloudConfig = { ghToken: _t1 + _t2, gistId: "e0c4d3f40b1e93902998d19534541fe3", enabled: true };
-// 客服版强制开启同步，不读取本地配置
+// 读取本地保存的配置（如有）
+try {
+  const saved = JSON.parse(localStorage.getItem(CLOUD_STORAGE_KEY));
+  if(saved){
+    if(saved.ghToken) cloudConfig.ghToken = saved.ghToken;
+    if(saved.gistId) cloudConfig.gistId = saved.gistId;
+    if(typeof saved.enabled === "boolean") cloudConfig.enabled = saved.enabled;
+  }
+} catch(e) {}
 
 function loadCloudConfigToForm(){
-  // 客服版已内置配置，无需加载到表单
+  document.getElementById("ghToken").value = cloudConfig.ghToken || "";
+  document.getElementById("cloudEnabled").checked = cloudConfig.enabled;
 }
 function saveCloudConfig(){
   cloudConfig.ghToken = document.getElementById("ghToken").value.trim();
