@@ -755,19 +755,19 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
   <div class="card ai-config-card">
     <div class="card-head">
       <span class="ct"><span class="ico">🤖</span>AI 智能助手</span>
-      <span class="right hint-small">接入本地开源模型</span>
+      <span class="right hint-small">支持豆包/DeepSeek等</span>
     </div>
     <div class="ai-config-row">
       <label>接口地址</label>
-      <input id="aiBaseUrl" placeholder="https://api.deepseek.com/v1" value="https://api.deepseek.com/v1">
+      <input id="aiBaseUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3" value="https://ark.cn-beijing.volces.com/api/v3">
     </div>
     <div class="ai-config-row">
       <label>模型名称</label>
-      <input id="aiModel" placeholder="deepseek-chat / deepseek-reasoner" value="deepseek-chat">
+      <input id="aiModel" placeholder="doubao-pro-32k / doubao-lite-32k" value="doubao-lite-32k">
     </div>
     <div class="ai-config-row">
       <label>API Key</label>
-      <input id="aiApiKey" type="password" placeholder="sk-..." value="sk-aae6ee56ec0a4f929ccc76e540f0c292">
+      <input id="aiApiKey" type="password" placeholder="填豆包API Key">
     </div>
     <div class="check-row">
       <label><input type="checkbox" id="aiAutoOn"> 🔍 未命中时自动AI推荐</label>
@@ -778,8 +778,9 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
       <button class="btn-default" onclick="saveAiConfig()">💾 保存配置</button>
     </div>
     <div id="aiConfigStatus" class="ai-status"></div>
-    <div class="hint-small" style="margin-top:4px">
-      💡 已默认配置 DeepSeek 在线API。也支持任何 OpenAI 兼容接口：通义千问、SiliconFlow、One-API、本地 Ollama 等。
+    <div class="hint-small" style="margin-top:4px;line-height:1.7">
+      💡 接入豆包：打开 <b>https://console.volcengine.com/ark</b> 注册火山引擎 → 创建API Key → 填到上面即可（有免费额度）。<br>
+      🔄 也支持任何 OpenAI 兼容接口：DeepSeek、通义千问、SiliconFlow、本地Ollama等。
     </div>
   </div>
 
@@ -1149,11 +1150,11 @@ function pushToCloud(immediate){
 }
 
 /* ========== AI 配置 ========== */
-const AI_CONFIG_VERSION = 2;  // 改默认配置时+1，强制刷新旧缓存
+const AI_CONFIG_VERSION = 3;  // 改默认配置时+1，强制刷新旧缓存
 let aiConfig = {
-  baseUrl: "https://api.deepseek.com/v1",
-  model: "deepseek-chat",
-  apiKey: "sk-aae6ee56ec0a4f929ccc76e540f0c292",
+  baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+  model: "doubao-lite-32k",
+  apiKey: "",
   autoOn: false,
   politeOn: true,
   _v: AI_CONFIG_VERSION
