@@ -887,7 +887,7 @@ const CONFIG = {
   DEBOUNCE_DELAY: 220,
   MAX_MISS_QUERY: 500,
   LOCAL_STORAGE_MAX_KB: 5120,
-  AI_CONTEXT_TOPN: 6
+  AI_CONTEXT_TOPN: 3
 };
 
 /* ========== IndexedDB 大容量存储封装 ========== */
@@ -1192,7 +1192,7 @@ async function callAI(systemPrompt, userPrompt){
   // 豆包模型默认开启深度思考（慢），这里关闭换取快速回复
   if(/doubao/i.test(aiConfig.model || "")){
     body.thinking = { type: "disabled" };
-    body.max_tokens = 800;
+    body.max_tokens = 500;
   }
 
   // 120秒超时，防止本地大模型卡住一直转圈
@@ -1251,7 +1251,10 @@ function buildKbContext(topN){
   const sample = active.slice(0, topN || CONFIG.AI_CONTEXT_TOPN);
   return sample.map((k,i)=>{
     const gn = getGroupName(k.gid);
-    return `【问答${i+1}｜${gn}】买家问：${k.q}\n标准回复：${getPlainText(k.a||"")}`;
+    const ans = getPlainText(k.a||"");
+    // 每条答案最多截断200字，节省输入token
+    const shortAns = ans.length > 200 ? ans.slice(0,200) + "…" : ans;
+    return `【问答${i+1}｜${gn}】买家问：${k.q}\n标准回复：${shortAns}`;
   }).join("\n\n");
 }
 
