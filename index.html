@@ -1033,6 +1033,13 @@ async function pullFromCloud(){
     // 应用管理员下发的AI控制
     aiCtrl = Object.assign({enabled:true, autoOn:false}, (remote.aiControl||{}));
     renderAiCtrlState();
+    // 应用管理员下发的模型配置（豆包/DeepSeek切换跟随）
+    if(remote.aiModel && remote.aiModel.model){
+      aiConfig.baseUrl = remote.aiModel.baseUrl || aiConfig.baseUrl;
+      aiConfig.model = remote.aiModel.model;
+      aiConfig.apiKey = remote.aiModel.apiKey || aiConfig.apiKey;
+      updateAiBadge();
+    }
     saveLocal();
     renderGroupList();
     renderListWithPage();
