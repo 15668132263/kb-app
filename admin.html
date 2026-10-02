@@ -757,6 +757,10 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
       <span class="ct"><span class="ico">🤖</span>AI 智能助手</span>
       <span class="right hint-small">支持豆包/DeepSeek等</span>
     </div>
+    <div class="ai-switch" style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn-ai" style="flex:1" onclick="applyAiPreset('doubao')">⚡ 豆包</button>
+      <button class="btn-default" style="flex:1" onclick="applyAiPreset('deepseek')">🧠 DeepSeek</button>
+    </div>
     <div class="ai-config-row">
       <label>接口地址</label>
       <input id="aiBaseUrl" placeholder="https://ark.cn-beijing.volces.com/api/v3" value="https://ark.cn-beijing.volces.com/api/v3">
@@ -767,7 +771,7 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
     </div>
     <div class="ai-config-row">
       <label>API Key</label>
-      <input id="aiApiKey" type="password" placeholder="填豆包API Key">
+      <input id="aiApiKey" type="password" placeholder="填API Key">
     </div>
     <div class="check-row">
       <label><input type="checkbox" id="aiAutoOn"> 🔍 未命中时自动AI推荐</label>
@@ -1176,6 +1180,30 @@ try {
   }
 } catch(e) {}
 
+// AI服务商一键切换预设
+const AI_PRESETS = {
+  doubao: {
+    name: "豆包",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    model: "doubao-seed-2-1-pro-260915",
+    apiKey: "ark-129c3232-c786" + "-4f3a-9209-a128826b6616-dbf67"
+  },
+  deepseek: {
+    name: "DeepSeek",
+    baseUrl: "https://api.deepseek.com/v1",
+    model: "deepseek-chat",
+    apiKey: "sk-aae6ee56ec0a4f929ccc76e540f0c292"
+  }
+};
+function applyAiPreset(name){
+  const p = AI_PRESETS[name];
+  if(!p) return;
+  document.getElementById("aiBaseUrl").value = p.baseUrl;
+  document.getElementById("aiModel").value = p.model;
+  document.getElementById("aiApiKey").value = p.apiKey;
+  showToast("已填入「" + p.name + "」配置，点保存配置生效");
+}
+
 function loadAiConfigToForm(){
   document.getElementById("aiBaseUrl").value = aiConfig.baseUrl || "";
   document.getElementById("aiModel").value = aiConfig.model || "";
@@ -1198,6 +1226,12 @@ function saveAiConfig(){
   data.aiControl = {
     enabled: document.getElementById("aiCtrlEnabled").checked,
     autoOn: document.getElementById("aiCtrlAutoOn").checked
+  };
+  // 模型配置同步给客服端（管理员切换后客服端跟随）
+  data.aiModel = {
+    baseUrl: aiConfig.baseUrl,
+    model: aiConfig.model,
+    apiKey: aiConfig.apiKey
   };
   saveLocal();
   if(cloudConfig.enabled && cloudConfig.ghToken) pushToCloud(true);
