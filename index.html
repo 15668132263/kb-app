@@ -1775,6 +1775,7 @@ function saveLocal(){
     try {
       try { localStorage.setItem(CONFIG.STORAGE_KEY_ALL,JSON.stringify(data)); } catch(e) {}
       try { dbSet(CONFIG.STORAGE_KEY_ALL, data); } catch(e) {}
+    } catch(e) {}
     try {
       localStorage.setItem(CONFIG.STORAGE_KEY_MISS,JSON.stringify(missQueryList));
       localStorage.setItem(CONFIG.STORAGE_KEY_RECYCLE,JSON.stringify(recycleBin));
