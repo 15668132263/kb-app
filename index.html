@@ -641,6 +641,7 @@ label.field-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);d
       <button class="btn-default" onclick="clearQuery()">🧹 清空</button>
       <button class="btn-warning" onclick="toggleFloatWindow()">🪟 悬浮小窗</button>
       <button class="btn-ai" id="aiSmartBtn" onclick="aiSmartReply()">🤖 AI智能回复</button>
+      <button class="btn-ai" id="aiFreeBtn" onclick="aiFreeChat()" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">💬 自由AI</button>
       <button class="btn-info" onclick="openMissQueryModal()">📋未命中<span id="missBadge" class="hint-small"></span></button>
     </div>
     <div id="searchResultBox"></div>
@@ -1026,10 +1027,26 @@ async function pullFromCloud(){
       throw new Error("Gist中没有找到数据文件");
     }
     const remote = JSON.parse(file.content);
-    groups = remote.groups || [];
-    knowledge = remote.knowledge || [];
-    searchCount = remote.searchCount || 0;
-    data = remote;
+    const remoteKnowledge = remote.knowledge || [];
+    const remoteGroups = remote.groups || [];
+    const localKb = knowledge || [];
+    const localKbMap = {};
+    localKb.forEach(k => { localKbMap[k.id] = k; });
+    remoteKnowledge.forEach(rk => {
+      const lk = localKbMap[rk.id];
+      if(!lk){ localKbMap[rk.id] = rk; }
+      else {
+        const lMt = lk.mtime||lk.ctime||0, rMt = rk.mtime||rk.ctime||0;
+        if(rMt > lMt) localKbMap[rk.id] = rk;
+      }
+    });
+    knowledge = Object.values(localKbMap);
+    const gMap = {};
+    (groups||[]).forEach(g => { gMap[g.gid] = g; });
+    remoteGroups.forEach(rg => { if(!gMap[rg.gid]) gMap[rg.gid] = rg; });
+    groups = Object.values(gMap);
+    searchCount = Math.max(searchCount||0, remote.searchCount||0);
+    data = Object.assign({}, remote, {groups, knowledge, searchCount});
     // 应用管理员下发的AI控制
     aiCtrl = Object.assign({enabled:true, autoOn:false}, (remote.aiControl||{}));
     renderAiCtrlState();
@@ -1356,6 +1373,42 @@ ${context}`;
   }
 }
 
+
+/* 自由AI：不依赖知识库，直接回答 */
+async function aiFreeChat(){
+  if(!aiCtrl.enabled) return showToast("AI功能已被管理员关闭","error");
+  const q = document.getElementById("queryInput").value.trim();
+  if(!q) return showToast("请先输入买家问题","error");
+  const btn = document.getElementById("aiFreeBtn");
+  btn.disabled = true; btn.innerText = "⏳ 思考中...";
+  const box = document.getElementById("searchResultBox");
+  const loading = document.createElement("div");
+  loading.className = "ai-panel";
+  loading.innerHTML = `<div class="ai-loading"><div class="ai-spinner"></div>💬 AI正在自由回答...</div>`;
+  box.appendChild(loading);
+  try{
+    const polite = aiConfig.politeOn
+      ? "语气亲切礼貌，用'亲'称呼买家，简短友好。"
+      : "语气专业简洁。";
+    const sys = `你是一名资深电商客服。${polite}
+规则：
+1. 只输出回复正文，不要解释。
+2. 不要提及"知识库"。
+3. 不要使用违禁词（微信、QQ、电话等）。
+4. 遇到不确定的问题，委婉引导买家联系人工客服。
+5. 如果是售后问题，表达歉意并给出合理解决方案。`;
+    const out = await callAI(sys, "买家问：" + q);
+    loading.remove();
+    if(!out) throw new Error("AI返回为空");
+    renderAiResultInSearch(out);
+  }catch(e){
+    loading.remove();
+    showToast("❌ AI生成失败：" + e.message, "error");
+  }finally{
+    btn.disabled = false;
+    btn.innerText = "💬 自由AI";
+  }
+}
 /* AI润色答案 */
 async function aiPolishAnswer(){
   const a = getPlainText(document.getElementById("aInput").value);
@@ -1720,11 +1773,8 @@ function saveLocal(){
     data.groups=groups;data.knowledge=knowledge;data.searchCount=searchCount;
     // 优先存localStorage，如果满了就存IndexedDB
     try {
-      localStorage.setItem(CONFIG.STORAGE_KEY_ALL,JSON.stringify(data));
-    } catch(e) {
-      // localStorage满了，存IndexedDB
-      dbSet(CONFIG.STORAGE_KEY_ALL, data);
-    }
+      try { localStorage.setItem(CONFIG.STORAGE_KEY_ALL,JSON.stringify(data)); } catch(e) {}
+      try { dbSet(CONFIG.STORAGE_KEY_ALL, data); } catch(e) {}
     try {
       localStorage.setItem(CONFIG.STORAGE_KEY_MISS,JSON.stringify(missQueryList));
       localStorage.setItem(CONFIG.STORAGE_KEY_RECYCLE,JSON.stringify(recycleBin));
